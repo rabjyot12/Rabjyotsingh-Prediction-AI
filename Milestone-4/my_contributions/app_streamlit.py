@@ -1418,48 +1418,54 @@ with tab3:
 
 with tab4:
 
-    st.markdown("""
-    <h1 style="margin: 0; padding: 0; font-size: 32px; color: #111827;
-    font-weight: 700; font-family: sans-serif; margin-bottom: 4px;">
-    Project Risk Dashboard
-    </h1>
+    st.title("Project Risk Dashboard")
 
-    <p style="margin: 0 0 24px 0; color: #6B7280; font-size: 19px;
-    font-family: sans-serif;">
-    Comprehensive project health, risk analysis and strategic assessment
-    </p>
-    """, unsafe_allow_html=True)
+    st.caption(
+        "Comprehensive project health, risk analysis and strategic assessment"
+    )
 
-    # ------------------------------------------------------------
+    # ========================================================
     # EMPTY STATE
-    # ------------------------------------------------------------
+    # ========================================================
 
     if not st.session_state.get("has_analyzed", False):
 
         st.info(
-            "💡 Enter your project details and click "
-            "'Analyze Project' to generate the dashboard."
+            "👈 Enter your project details in the Project Input tab "
+            "and click 'Analyze Project' to view the dashboard."
         )
 
     else:
 
-        # ========================================================
-        # LOAD REAL PROJECT DATA
-        # ========================================================
+        # ====================================================
+        # LOAD DATA
+        # ====================================================
 
-        project = st.session_state.get("project_data", {})
+        project = st.session_state.get(
+            "project_data",
+            {}
+        )
 
         assessment = st.session_state.get(
             "risk_assessment_data",
             {}
         )
 
-        risk_score = assessment.get("risk_score", 0)
-        risk_status = assessment.get("risk_status", "UNKNOWN")
+        risk_score = assessment.get(
+            "risk_score",
+            0
+        )
+
+        risk_status = assessment.get(
+            "risk_status",
+            "UNKNOWN"
+        )
+
         success_probability = assessment.get(
             "success_probability",
             0
         )
+
         feasibility_score = assessment.get(
             "feasibility_score",
             0
@@ -1475,7 +1481,10 @@ with tab4:
             {}
         )
 
-        # M3 outputs generated earlier in Tab 2
+        # ====================================================
+        # M3 OUTPUTS
+        # ====================================================
+
         recommendations = locals().get(
             "recommendation_results",
             {}
@@ -1491,7 +1500,10 @@ with tab4:
             []
         )
 
-        # LangGraph result, if the workflow has been executed
+        # ====================================================
+        # LANGGRAPH OUTPUT
+        # ====================================================
+
         workflow_result = st.session_state.get(
             "m3_workflow_result",
             {}
@@ -1502,874 +1514,875 @@ with tab4:
             {}
         ) if workflow_result else {}
 
-        # ========================================================
-        # PROJECT OVERVIEW
-        # ========================================================
+        # Use LangGraph outputs when available
+        if final_response:
 
-        st.subheader("Project Overview")
-
-        overview_col1, overview_col2, overview_col3 = st.columns(3)
-
-        with overview_col1:
-            st.markdown(
-                f"""
-                **Project**
-
-                {project.get("startup_name", "N/A")}
-
-                **Industry**
-
-                {project.get("industry", "N/A")}
-                """
+            langgraph_recommendations = final_response.get(
+                "key_strategic_recommendations",
+                []
             )
 
-        with overview_col2:
-            st.markdown(
-                f"""
-                **Business Model**
+            if langgraph_recommendations:
 
-                {project.get("business_model", "N/A")}
+                recommendations = {
+                    "overall_strategic_recommendation":
+                        final_response.get(
+                            "final_strategic_assessment",
+                            ""
+                        ),
 
-                **Target Market**
+                    "recommendations":
+                        langgraph_recommendations,
 
-                {project.get("target_market", "N/A")}
-                """
-            )
+                    "short_term_action_plan":
+                        final_response.get(
+                            "short_term_action_plan",
+                            []
+                        ),
 
-        with overview_col3:
-            budget = project.get("budget", 0)
+                    "long_term_action_plan":
+                        final_response.get(
+                            "long_term_action_plan",
+                            []
+                        )
+                }
 
-            try:
-                budget_display = f"${float(budget):,.0f}"
-            except (TypeError, ValueError):
-                budget_display = str(budget)
+            if final_response.get(
+                "mitigation_strategies"
+            ):
 
-            st.markdown(
-                f"""
-                **Budget**
+                mitigation_results = final_response.get(
+                    "mitigation_strategies",
+                    []
+                )
 
-                {budget_display}
+            if final_response.get(
+                "improvement_suggestions"
+            ):
 
-                **Project Status**
+                improvement_results = final_response.get(
+                    "improvement_suggestions",
+                    []
+                )
 
-                {"Analysis Complete" if st.session_state.get("has_analyzed")
-                else "Pending Analysis"}
-                """
-            )
+
+        # ====================================================
+        # PROJECT INFORMATION
+        # ====================================================
+
+        project_name = project.get(
+            "startup_name",
+            "N/A"
+        )
+
+        industry = project.get(
+            "industry",
+            "N/A"
+        )
+
+        business_model = project.get(
+            "business_model",
+            "N/A"
+        )
+
+        target_market = project.get(
+            "target_market",
+            "N/A"
+        )
+
+        budget = project.get(
+            "budget",
+            0
+        )
 
         description = project.get(
             "project_description",
             ""
         )
 
-        if description:
-            st.markdown("**Project Description**")
-            st.info(description)
+        try:
+            budget_display = f"${float(budget):,.0f}"
+        except (TypeError, ValueError):
+            budget_display = str(budget)
 
-        st.divider()
 
-        # ========================================================
-        # TOP RISK SUMMARY
-        # ========================================================
+        # ====================================================
+        # FIND RISK CATEGORIES
+        # ====================================================
 
-        st.subheader("Risk & Project Health")
+        market_risk = 0
+        financial_risk = 0
+        technical_risk = 0
 
-        metric1, metric2, metric3, metric4 = st.columns(4)
+        for risk in risk_data:
 
-        with metric1:
-            st.metric(
-                "Overall Risk",
-                f"{risk_score}/100"
+            category = str(
+                risk.get(
+                    "risk_category",
+                    ""
+                )
+            ).lower()
+
+            score = risk.get(
+                "risk_score",
+                0
             )
 
-        with metric2:
-            st.metric(
-                "Risk Status",
-                risk_status
-            )
+            if "market" in category:
+                market_risk = score
 
-        with metric3:
-            st.metric(
-                "Success Probability",
-                f"{success_probability}%"
-            )
+            elif "financial" in category:
+                financial_risk = score
 
-        with metric4:
-            st.metric(
-                "Feasibility",
-                f"{feasibility_score}%"
-            )
+            elif "technical" in category:
+                technical_risk = score
 
-        # Status message
-        if risk_status == "HIGH RISK":
-            st.error(
-                "⚠️ High-risk project. Immediate mitigation "
-                "of priority risks is recommended."
-            )
-        elif risk_status == "MEDIUM RISK":
-            st.warning(
-                "⚠️ Medium-risk project. Priority risks should "
-                "be actively monitored and mitigated."
-            )
-        else:
-            st.success(
-                "✓ Low-risk project. Continue monitoring key "
-                "project assumptions."
-            )
 
-        st.divider()
+        # ====================================================
+        # SORT RISKS
+        # ====================================================
 
-        # ========================================================
-        # RISK FACTOR OVERVIEW
-        # ========================================================
-
-        st.subheader("Risk Factor Overview")
-
-        if risk_data:
-
-            risk_cols = st.columns(
-                min(len(risk_data), 3)
-            )
-
-            for index, risk in enumerate(risk_data):
-
-                with risk_cols[index % len(risk_cols)]:
-
-                    category = risk.get(
-                        "risk_category",
-                        "Risk"
-                    )
-
-                    score = risk.get(
-                        "risk_score",
-                        0
-                    )
-
-                    description = risk.get(
-                        "risk_description",
-                        "No description available."
-                    )
-
-                    priority = risk.get(
-                        "priority_level",
-                        "Medium"
-                    )
-
-                    st.markdown(
-                        f"""
-                        <div style="
-                            border: 1px solid #E5E7EB;
-                            border-radius: 12px;
-                            padding: 18px;
-                            margin-bottom: 12px;
-                            background: white;
-                            min-height: 170px;
-                        ">
-
-                        <div style="
-                            font-size: 15px;
-                            color: #6B7280;
-                            margin-bottom: 6px;
-                        ">
-                            {category} Risk
-                        </div>
-
-                        <div style="
-                            font-size: 30px;
-                            font-weight: 700;
-                            color: #111827;
-                        ">
-                            {score}/100
-                        </div>
-
-                        <div style="
-                            margin: 8px 0;
-                            font-weight: 600;
-                        ">
-                            {priority} Priority
-                        </div>
-
-                        <div style="
-                            color: #6B7280;
-                            font-size: 14px;
-                            line-height: 1.5;
-                        ">
-                            {description}
-                        </div>
-
-                        </div>
-                        """,
-                        unsafe_allow_html=True
-                    )
-
-        else:
-            st.info("No detailed risk factors available.")
-
-        # ========================================================
-        # RISK VISUALIZATION
-        # ========================================================
-
-        if risk_data:
-
-            st.markdown("### Risk Distribution")
-
-            risk_chart = pd.DataFrame(
-                {
-                    "Risk Score": [
-                        item.get("risk_score", 0)
-                        for item in risk_data
-                    ]
-                },
-                index=[
-                    item.get(
-                        "risk_category",
-                        "Risk"
-                    )
-                    for item in risk_data
-                ]
-            )
-
-            st.bar_chart(
-                risk_chart,
-                height=300
-            )
-
-        st.divider()
-
-        # ========================================================
-        # SWOT ANALYSIS
-        # ========================================================
-
-        st.subheader("SWOT Analysis")
-
-        swot_col1, swot_col2 = st.columns(2)
-
-        with swot_col1:
-
-            st.success("### 💪 Strengths")
-
-            strengths = swot.get(
-                "Strengths",
-                []
-            )
-
-            if strengths:
-                for item in strengths:
-                    st.markdown(f"- {item}")
-            else:
-                st.write("No strengths identified.")
-
-            st.info("### 🚀 Opportunities")
-
-            opportunities = swot.get(
-                "Opportunities",
-                []
-            )
-
-            if opportunities:
-                for item in opportunities:
-                    st.markdown(f"- {item}")
-            else:
-                st.write("No opportunities identified.")
-
-        with swot_col2:
-
-            st.error("### ⚠️ Weaknesses")
-
-            weaknesses = swot.get(
-                "Weaknesses",
-                []
-            )
-
-            if weaknesses:
-                for item in weaknesses:
-                    st.markdown(f"- {item}")
-            else:
-                st.write("No weaknesses identified.")
-
-            st.warning("### 🔥 Threats")
-
-            threats = swot.get(
-                "Threats",
-                []
-            )
-
-            if threats:
-                for item in threats:
-                    st.markdown(f"- {item}")
-            else:
-                st.write("No threats identified.")
-
-        st.divider()
-
-        # ========================================================
-        # FEASIBILITY
-        # ========================================================
-
-        st.subheader("Project Feasibility")
-
-        feasibility_col1, feasibility_col2 = st.columns(
-            [1, 2]
+        sorted_risks = sorted(
+            risk_data,
+            key=lambda x: x.get(
+                "risk_score",
+                0
+            ),
+            reverse=True
         )
 
-        with feasibility_col1:
 
-            st.metric(
-                "Overall Feasibility",
-                f"{feasibility_score}%"
+        # ====================================================
+        # THREE COLUMN DASHBOARD
+        # ====================================================
+
+        left_col, center_col, right_col = st.columns(
+            [1.05, 1.45, 1.0],
+            gap="large"
+        )
+
+
+        # ====================================================
+        # LEFT COLUMN
+        # RISK ANALYTICS
+        # ====================================================
+
+        with left_col:
+
+            st.subheader("Risk Analytics")
+
+            # -----------------------------------------------
+            # KPI ROW 1
+            # -----------------------------------------------
+
+            kpi1, kpi2 = st.columns(2)
+
+            with kpi1:
+
+                st.metric(
+                    "Overall Risk",
+                    f"{risk_score}%"
+                )
+
+                if risk_status == "HIGH RISK":
+                    st.error(risk_status)
+                elif risk_status == "MEDIUM RISK":
+                    st.warning(risk_status)
+                else:
+                    st.success(risk_status)
+
+            with kpi2:
+
+                st.metric(
+                    "Success Prob.",
+                    f"{success_probability}%"
+                )
+
+                st.caption(
+                    "Based on risk score"
+                )
+
+
+            # -----------------------------------------------
+            # KPI ROW 2
+            # -----------------------------------------------
+
+            kpi3, kpi4 = st.columns(2)
+
+            with kpi3:
+
+                st.metric(
+                    "Market Risk",
+                    f"{market_risk}%"
+                )
+
+            with kpi4:
+
+                st.metric(
+                    "Tech Risk",
+                    f"{technical_risk}%"
+                )
+
+
+            # -----------------------------------------------
+            # PROJECT HEALTH
+            # -----------------------------------------------
+
+            st.markdown("### Project Health")
+
+            st.write(
+                f"**Feasibility:** {feasibility_score}%"
+            )
+
+            st.progress(
+                max(
+                    0,
+                    min(
+                        feasibility_score,
+                        100
+                    )
+                ) / 100
             )
 
             if feasibility_score >= 70:
-                st.success("Good Feasibility")
+
+                st.success(
+                    "Good Feasibility"
+                )
+
             elif feasibility_score >= 40:
-                st.warning("Moderate Feasibility")
+
+                st.warning(
+                    "Moderate Feasibility"
+                )
+
             else:
-                st.error("Low Feasibility")
 
-        with feasibility_col2:
-
-            st.write("**Feasibility Components**")
-
-            # These values come directly from the current
-            # assessment inputs used to calculate feasibility.
-
-            team_capability = st.session_state.get(
-                "current_team_capability",
-                None
-            )
-
-            competitive_advantage = st.session_state.get(
-                "current_competitive_advantage",
-                None
-            )
-
-            resource_score = st.session_state.get(
-                "current_resource_score",
-                None
-            )
-
-            market_opportunity = st.session_state.get(
-                "current_market_opportunity",
-                None
-            )
-
-            if team_capability is not None:
-                st.progress(
-                    team_capability / 100,
-                    text=f"Team Capability — {team_capability}%"
+                st.error(
+                    "Low Feasibility"
                 )
 
-            if competitive_advantage is not None:
-                st.progress(
-                    competitive_advantage / 100,
-                    text=(
-                        "Competitive Advantage — "
-                        f"{competitive_advantage}%"
-                    )
+
+            # -----------------------------------------------
+            # RISK DISTRIBUTION
+            # -----------------------------------------------
+
+            st.markdown("### Risk Distribution")
+
+            if risk_data:
+
+                risk_chart = pd.DataFrame(
+                    {
+                        "Risk Score": [
+                            item.get(
+                                "risk_score",
+                                0
+                            )
+                            for item in risk_data
+                        ]
+                    },
+
+                    index=[
+                        item.get(
+                            "risk_category",
+                            "Risk"
+                        )
+                        for item in risk_data
+                    ]
                 )
 
-            if resource_score is not None:
-                st.progress(
-                    resource_score / 100,
-                    text=(
-                        "Resource Availability — "
-                        f"{resource_score}%"
-                    )
+                st.bar_chart(
+                    risk_chart,
+                    height=220
                 )
 
-            if market_opportunity is not None:
-                st.progress(
-                    market_opportunity / 100,
-                    text=(
-                        "Market Opportunity — "
-                        f"{market_opportunity}%"
-                    )
-                )
+            else:
 
-        st.divider()
-
-        # ========================================================
-        # AI RECOMMENDATIONS
-        # ========================================================
-
-        st.subheader("AI Strategic Recommendations")
-
-        if recommendations:
-
-            overall_recommendation = recommendations.get(
-                "overall_strategic_recommendation",
-                ""
-            )
-
-            if overall_recommendation:
                 st.info(
-                    f"**Overall Strategic Recommendation**\n\n"
-                    f"{overall_recommendation}"
+                    "Risk distribution unavailable."
                 )
 
-            recommendation_list = recommendations.get(
-                "recommendations",
-                []
+
+            # -----------------------------------------------
+            # PROJECT SNAPSHOT
+            # -----------------------------------------------
+
+            st.markdown("### Project Snapshot")
+
+            st.write(
+                f"**{project_name}**"
+            )
+
+            st.caption(
+                f"{industry} · {business_model}"
+            )
+
+            st.write(
+                f"Target Market: **{target_market}**"
+            )
+
+            st.write(
+                f"Budget: **{budget_display}**"
+            )
+
+
+        # ====================================================
+        # CENTER COLUMN
+        # ASSESSMENT REPORT
+        # ====================================================
+
+        with center_col:
+
+            st.subheader("Assessment Report")
+
+            # ------------------------------------------------
+            # REPORT CONTAINER
+            # ------------------------------------------------
+
+            with st.container(
+                height=650,
+                border=True
+            ):
+
+                st.markdown(
+                    "### Key Findings"
+                )
+
+                if sorted_risks:
+
+                    for risk in sorted_risks[:3]:
+
+                        category = risk.get(
+                            "risk_category",
+                            "Risk"
+                        )
+
+                        score = risk.get(
+                            "risk_score",
+                            0
+                        )
+
+                        priority = risk.get(
+                            "priority_level",
+                            "Medium"
+                        )
+
+                        risk_description = risk.get(
+                            "risk_description",
+                            "No description available."
+                        )
+
+                        with st.container(
+                            border=True
+                        ):
+
+                            top1, top2 = st.columns(
+                                [3, 1]
+                            )
+
+                            with top1:
+
+                                st.markdown(
+                                    f"**{category} Risk**"
+                                )
+
+                            with top2:
+
+                                st.caption(
+                                    f"{priority} Priority"
+                                )
+
+                            st.write(
+                                risk_description
+                            )
+
+                            st.caption(
+                                f"Risk Score: {score}/100"
+                            )
+
+
+                # --------------------------------------------
+                # RISK ASSESSMENT
+                # --------------------------------------------
+
+                st.markdown(
+                    "### Risk Assessment"
+                )
+
+                r1, r2 = st.columns(2)
+
+                with r1:
+
+                    st.metric(
+                        "Overall Risk",
+                        f"{risk_score}/100"
+                    )
+
+                    st.metric(
+                        "Success Probability",
+                        f"{success_probability}%"
+                    )
+
+                with r2:
+
+                    st.metric(
+                        "Risk Status",
+                        risk_status
+                    )
+
+                    st.metric(
+                        "Feasibility",
+                        f"{feasibility_score}%"
+                    )
+
+
+                # --------------------------------------------
+                # RECOMMENDATIONS
+                # --------------------------------------------
+
+                st.markdown(
+                    "### Recommendations"
+                )
+
+                overall_recommendation = recommendations.get(
+                    "overall_strategic_recommendation",
+                    ""
+                )
+
+                if overall_recommendation:
+
+                    st.info(
+                        overall_recommendation
+                    )
+
+                recommendation_list = recommendations.get(
+                    "recommendations",
+                    []
+                )
+
+                if recommendation_list:
+
+                    for index, recommendation in enumerate(
+                        recommendation_list[:5],
+                        start=1
+                    ):
+
+                        title = recommendation.get(
+                            "title",
+                            f"Recommendation {index}"
+                        )
+
+                        action = recommendation.get(
+                            "action",
+                            "N/A"
+                        )
+
+                        priority = recommendation.get(
+                            "priority",
+                            "Medium"
+                        )
+
+                        with st.container(
+                            border=True
+                        ):
+
+                            st.markdown(
+                                f"**{index}. {title}**"
+                            )
+
+                            st.caption(
+                                f"{priority} Priority"
+                            )
+
+                            st.write(
+                                action
+                            )
+
+                else:
+
+                    st.info(
+                        "Run the Recommendations workflow "
+                        "to generate recommendations."
+                    )
+
+
+                # --------------------------------------------
+                # MITIGATION
+                # --------------------------------------------
+
+                st.markdown(
+                    "### Risk Mitigation"
+                )
+
+                if mitigation_results:
+
+                    for mitigation in mitigation_results[:5]:
+
+                        risk_name = mitigation.get(
+                            "risk",
+                            "Risk"
+                        )
+
+                        strategy = mitigation.get(
+                            "mitigation_strategy",
+                            "N/A"
+                        )
+
+                        with st.expander(
+                            risk_name
+                        ):
+
+                            st.write(
+                                strategy
+                            )
+
+                else:
+
+                    st.info(
+                        "No mitigation strategies available."
+                    )
+
+
+                # --------------------------------------------
+                # FINAL ASSESSMENT
+                # --------------------------------------------
+
+                st.markdown(
+                    "### Strategic Assessment"
+                )
+
+                final_assessment = final_response.get(
+                    "final_strategic_assessment",
+                    recommendations.get(
+                        "overall_strategic_recommendation",
+                        ""
+                    )
+                )
+
+                if final_assessment:
+
+                    st.info(
+                        final_assessment
+                    )
+
+                else:
+
+                    st.info(
+                        "Run the LangGraph Agent Workflow "
+                        "to generate the final strategic assessment."
+                    )
+
+
+            # ------------------------------------------------
+            # EXPORT ASSESSMENT REPORT
+            # ------------------------------------------------
+
+            report_lines = []
+
+            report_lines.append(
+                "# Project Risk Assessment Report"
+            )
+
+            report_lines.append("")
+
+            report_lines.append(
+                f"Project: {project_name}"
+            )
+
+            report_lines.append(
+                f"Industry: {industry}"
+            )
+
+            report_lines.append(
+                f"Business Model: {business_model}"
+            )
+
+            report_lines.append(
+                f"Target Market: {target_market}"
+            )
+
+            report_lines.append(
+                f"Budget: {budget_display}"
+            )
+
+            if description:
+
+                report_lines.append(
+                    f"Description: {description}"
+                )
+
+            report_lines.append("")
+
+            report_lines.append(
+                "## Risk Summary"
+            )
+
+            report_lines.append(
+                f"- Overall Risk: {risk_score}/100"
+            )
+
+            report_lines.append(
+                f"- Risk Status: {risk_status}"
+            )
+
+            report_lines.append(
+                f"- Success Probability: "
+                f"{success_probability}%"
+            )
+
+            report_lines.append(
+                f"- Feasibility: "
+                f"{feasibility_score}%"
+            )
+
+            report_lines.append("")
+
+            report_lines.append(
+                "## Risk Factors"
+            )
+
+            for risk in risk_data:
+
+                report_lines.append(
+                    f"- {risk.get('risk_category', 'Risk')}: "
+                    f"{risk.get('risk_score', 0)}/100 — "
+                    f"{risk.get('risk_description', 'N/A')}"
+                )
+
+            report_lines.append("")
+
+            report_lines.append(
+                "## Strategic Recommendations"
+            )
+
+            for recommendation in recommendation_list:
+
+                report_lines.append(
+                    f"- {recommendation.get('title', 'Recommendation')}: "
+                    f"{recommendation.get('action', 'N/A')}"
+                )
+
+            report_lines.append("")
+
+            report_lines.append(
+                "## Risk Mitigation"
+            )
+
+            for mitigation in mitigation_results:
+
+                report_lines.append(
+                    f"- {mitigation.get('risk', 'Risk')}: "
+                    f"{mitigation.get('mitigation_strategy', 'N/A')}"
+                )
+
+            report_lines.append("")
+
+            report_lines.append(
+                "## Improvement Plan"
+            )
+
+            for improvement in improvement_results:
+
+                report_lines.append(
+                    f"- {improvement.get('title', 'Improvement')}: "
+                    f"{improvement.get('improvement', 'N/A')}"
+                )
+
+            report_lines.append("")
+
+            report_lines.append(
+                "## Final Strategic Assessment"
+            )
+
+            report_lines.append(
+                final_assessment
+            )
+
+            report_content = "\n".join(
+                report_lines
+            )
+
+            st.download_button(
+                "⬇ Download Assessment Report",
+                data=report_content,
+                file_name="project_risk_assessment.md",
+                mime="text/markdown",
+                use_container_width=True
+            )
+
+            # -----------------------------------------------
+            # ASSESSMENT STATUS
+            # -----------------------------------------------
+
+            st.markdown(
+                "### Assessment Status"
+            )
+
+            status_items = [
+                (
+                    "Project Analysis",
+                    True
+                ),
+                (
+                    "Risk Assessment",
+                    bool(assessment)
+                ),
+                (
+                    "SWOT Analysis",
+                    bool(swot)
+                ),
+                (
+                    "AI Recommendations",
+                    bool(recommendation_list)
+                ),
+                (
+                    "Mitigation Plan",
+                    bool(mitigation_results)
+                ),
+                (
+                    "Improvement Plan",
+                    bool(improvement_results)
+                )
+            ]
+
+            for label, completed in status_items:
+
+                if completed:
+
+                    st.success(
+                        f"✓ {label}",
+                    )
+
+                else:
+
+                    st.caption(
+                        f"○ {label}"
+                    )
+
+
+        # ====================================================
+        # RIGHT COLUMN
+        # STRATEGIC INSIGHTS
+        # ====================================================
+
+        with right_col:
+
+            st.subheader("Strategic Insights")
+
+            # -----------------------------------------------
+            # HIGHEST RISK
+            # -----------------------------------------------
+
+            if sorted_risks:
+
+                highest_risk = sorted_risks[0]
+
+                with st.container(
+                    border=True
+                ):
+
+                    st.markdown(
+                        f"### {highest_risk.get('risk_category', 'Risk')} Risk"
+                    )
+
+                    st.caption(
+                        f"{highest_risk.get('risk_score', 0)}/100"
+                    )
+
+                    st.write(
+                        highest_risk.get(
+                            "risk_description",
+                            "No description available."
+                        )
+                    )
+
+                    st.info(
+                        "Priority area for immediate attention."
+                    )
+
+
+            # -----------------------------------------------
+            # FEASIBILITY
+            # -----------------------------------------------
+
+            with st.container(
+                border=True
+            ):
+
+                st.markdown(
+                    "### Project Feasibility"
+                )
+
+                if feasibility_score >= 70:
+
+                    feasibility_label = "Strong"
+
+                elif feasibility_score >= 40:
+
+                    feasibility_label = "Moderate"
+
+                else:
+
+                    feasibility_label = "Low"
+
+                st.metric(
+                    "Feasibility",
+                    f"{feasibility_score}%"
+                )
+
+                st.caption(
+                    f"{feasibility_label} feasibility"
+                )
+
+                st.write(
+                    "Strengthen weak project areas before "
+                    "major expansion."
+                )
+
+
+            # -----------------------------------------------
+            # RECOMMENDED NEXT STEPS
+            # -----------------------------------------------
+
+            st.markdown(
+                "### Recommended Next Steps"
             )
 
             if recommendation_list:
 
                 for index, recommendation in enumerate(
-                    recommendation_list,
+                    recommendation_list[:3],
                     start=1
                 ):
 
                     title = recommendation.get(
                         "title",
-                        f"Recommendation {index}"
-                    )
-
-                    category = recommendation.get(
-                        "category",
-                        "Strategy"
-                    )
-
-                    priority = recommendation.get(
-                        "priority",
-                        "Medium"
+                        f"Action {index}"
                     )
 
                     action = recommendation.get(
                         "action",
-                        "N/A"
+                        "Review this recommendation."
                     )
 
-                    problem = recommendation.get(
-                        "problem",
-                        ""
-                    )
-
-                    explanation = recommendation.get(
-                        "explanation",
-                        ""
-                    )
-
-                    risk_reduction = recommendation.get(
-                        "risk_reduction",
-                        ""
-                    )
-
-                    with st.expander(
-                        f"{index}. {title} — {priority} Priority"
+                    with st.container(
+                        border=True
                     ):
 
                         st.markdown(
-                            f"**Category:** {category}"
+                            f"**{index}. {title}**"
                         )
 
-                        if problem:
-                            st.markdown(
-                                f"**Problem / Risk:** {problem}"
-                            )
-
-                        if explanation:
-                            st.markdown(
-                                f"**Why It Matters:** {explanation}"
-                            )
-
-                        st.markdown(
-                            f"**Recommended Action:** {action}"
+                        st.caption(
+                            action
                         )
 
-                        if risk_reduction:
-                            st.markdown(
-                                f"**Risk Reduction:** "
-                                f"{risk_reduction}"
-                            )
+            else:
 
-            short_term = recommendations.get(
-                "short_term_action_plan",
-                []
-            )
-
-            long_term = recommendations.get(
-                "long_term_action_plan",
-                []
-            )
-
-            if short_term:
-
-                st.markdown("### Short-Term Action Plan")
-
-                for action in short_term:
-                    st.markdown(
-                        f"- {action}"
-                    )
-
-            if long_term:
-
-                st.markdown("### Long-Term Action Plan")
-
-                for action in long_term:
-                    st.markdown(
-                        f"- {action}"
-                    )
-
-        else:
-            st.info(
-                "No strategic recommendations are currently available."
-            )
-
-        st.divider()
-
-        # ========================================================
-        # MITIGATION STRATEGIES
-        # ========================================================
-
-        st.subheader("Risk Mitigation Strategies")
-
-        if mitigation_results:
-
-            for mitigation in mitigation_results:
-
-                risk_name = mitigation.get(
-                    "risk",
-                    "Unknown Risk"
-                )
-
-                category = mitigation.get(
-                    "category",
-                    "General"
-                )
-
-                impact = mitigation.get(
-                    "impact",
-                    "Unknown"
-                )
-
-                strategy = mitigation.get(
-                    "mitigation_strategy",
-                    "N/A"
-                )
-
-                preventive = mitigation.get(
-                    "preventive_action",
-                    "N/A"
-                )
-
-                contingency = mitigation.get(
-                    "contingency_action",
-                    "N/A"
-                )
-
-                with st.expander(
-                    f"⚠️ {risk_name} — {impact} Impact"
-                ):
-
-                    st.markdown(
-                        f"**Category:** {category}"
-                    )
-
-                    st.markdown(
-                        f"**Mitigation Strategy:** {strategy}"
-                    )
-
-                    st.markdown(
-                        f"**Preventive Action:** {preventive}"
-                    )
-
-                    st.markdown(
-                        f"**Contingency Action:** {contingency}"
-                    )
-
-        else:
-            st.info(
-                "No mitigation strategies are currently available."
-            )
-
-        st.divider()
-
-        # ========================================================
-        # IMPROVEMENT PLAN
-        # ========================================================
-
-        st.subheader("Project Improvement Plan")
-
-        if improvement_results:
-
-            improvement_cols = st.columns(3)
-
-            for index, improvement in enumerate(
-                improvement_results
-            ):
-
-                with improvement_cols[
-                    index % 3
-                ]:
-
-                    title = improvement.get(
-                        "title",
-                        "Improvement"
-                    )
-
-                    category = improvement.get(
-                        "category",
-                        "General"
-                    )
-
-                    priority = improvement.get(
-                        "priority",
-                        "Medium"
-                    )
-
-                    problem = improvement.get(
-                        "problem",
-                        ""
-                    )
-
-                    steps = improvement.get(
-                        "steps",
-                        []
-                    )
-
-                    risk_reduction = improvement.get(
-                        "risk_reduction",
-                        ""
-                    )
-
-                    st.markdown(
-                        f"""
-                        <div style="
-                            border: 1px solid #E5E7EB;
-                            border-radius: 12px;
-                            padding: 18px;
-                            margin-bottom: 16px;
-                            min-height: 230px;
-                            background: white;
-                        ">
-
-                        <div style="
-                            color: #6D28D9;
-                            font-size: 13px;
-                            font-weight: 700;
-                            text-transform: uppercase;
-                        ">
-                            {category}
-                        </div>
-
-                        <h4 style="
-                            margin: 8px 0;
-                            color: #111827;
-                        ">
-                            {title}
-                        </h4>
-
-                        <div style="
-                            color: #6B7280;
-                            font-size: 14px;
-                        ">
-                            Priority: <b>{priority}</b>
-                        </div>
-
-                        </div>
-                        """,
-                        unsafe_allow_html=True
-                    )
-
-                    if problem:
-                        st.markdown(
-                            f"**Problem:** {problem}"
-                        )
-
-                    if steps:
-
-                        st.markdown("**Action Steps:**")
-
-                        for step in steps:
-                            st.markdown(
-                                f"- {step}"
-                            )
-
-                    if risk_reduction:
-                        st.markdown(
-                            f"**Expected Risk Reduction:** "
-                            f"{risk_reduction}"
-                        )
-
-        else:
-            st.info(
-                "No improvement suggestions are currently available."
-            )
-
-        st.divider()
-
-        # ========================================================
-        # LANGGRAPH FINAL ASSESSMENT
-        # ========================================================
-
-        st.subheader("Final Strategic Assessment")
-
-        if final_response:
-
-            assessment_text = final_response.get(
-                "final_strategic_assessment",
-                ""
-            )
-
-            if assessment_text:
                 st.info(
-                    assessment_text
+                    "Recommendations will appear here "
+                    "after the AI workflow runs."
                 )
 
-            final_summary = final_response.get(
-                "project_summary",
-                {}
-            )
 
-            if final_summary:
-
-                with st.expander(
-                    "View Final Project Summary"
-                ):
-
-                    st.write(
-                        f"**Project:** "
-                        f"{final_summary.get('project_name', 'N/A')}"
-                    )
-
-                    st.write(
-                        f"**Industry:** "
-                        f"{final_summary.get('industry', 'N/A')}"
-                    )
-
-                    st.write(
-                        f"**Business Model:** "
-                        f"{final_summary.get('business_model', 'N/A')}"
-                    )
-
-                    st.write(
-                        f"**Target Market:** "
-                        f"{final_summary.get('target_market', 'N/A')}"
-                    )
-
-        else:
-
-            st.info(
-                "Run the LangGraph Agent Workflow in the "
-                "Recommendations tab to generate the final strategic assessment."
-            )
-
-        st.divider()
-
-        # ========================================================
-        # EXPORT REPORT
-        # ========================================================
-
-        st.subheader("Export Assessment")
-
-        report_lines = []
-
-        report_lines.append(
-            "# Prediction AI - Project Risk Assessment"
-        )
-
-        report_lines.append("")
-
-        report_lines.append(
-            f"Project: {project.get('startup_name', 'N/A')}"
-        )
-
-        report_lines.append(
-            f"Industry: {project.get('industry', 'N/A')}"
-        )
-
-        report_lines.append(
-            f"Business Model: {project.get('business_model', 'N/A')}"
-        )
-
-        report_lines.append(
-            f"Target Market: {project.get('target_market', 'N/A')}"
-        )
-
-        report_lines.append("")
-
-        report_lines.append("## Risk Summary")
-
-        report_lines.append(
-            f"- Risk Score: {risk_score}/100"
-        )
-
-        report_lines.append(
-            f"- Risk Status: {risk_status}"
-        )
-
-        report_lines.append(
-            f"- Success Probability: {success_probability}%"
-        )
-
-        report_lines.append(
-            f"- Feasibility Score: {feasibility_score}%"
-        )
-
-        report_lines.append("")
-
-        report_lines.append("## SWOT")
-
-        for section in [
-            "Strengths",
-            "Weaknesses",
-            "Opportunities",
-            "Threats"
-        ]:
-
-            report_lines.append(
-                f"### {section}"
-            )
-
-            for item in swot.get(section, []):
-                report_lines.append(
-                    f"- {item}"
-                )
-
-        report_lines.append("")
-
-        report_lines.append("## Strategic Recommendations")
-
-        for recommendation in recommendations.get(
-            "recommendations",
-            []
-        ):
-
-            report_lines.append(
-                f"- {recommendation.get('title', 'Recommendation')}: "
-                f"{recommendation.get('action', 'N/A')}"
-            )
-
-        report_lines.append("")
-
-        report_lines.append("## Mitigation Strategies")
-
-        for mitigation in mitigation_results:
-
-            report_lines.append(
-                f"- {mitigation.get('risk', 'Risk')}: "
-                f"{mitigation.get('mitigation_strategy', 'N/A')}"
-            )
-
-        report_lines.append("")
-
-        report_lines.append("## Improvement Plan")
-
-        for improvement in improvement_results:
-
-            report_lines.append(
-                f"- {improvement.get('title', 'Improvement')} "
-                f"({improvement.get('priority', 'Medium')})"
-            )
-
-        report_content = "\n".join(
-            report_lines
-        )
-
-        st.download_button(
-            label="📥 Download Assessment Report",
-            data=report_content,
-            file_name="project_risk_assessment.md",
-            mime="text/markdown",
-            use_container_width=True
-        )
+            
